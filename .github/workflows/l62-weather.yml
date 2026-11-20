@@ -36,6 +36,7 @@ jobs:
           NOMINAL_WORKSPACE_RID: ${{ secrets.NOMINAL_WORKSPACE_RID }}
           L62_STATE_FILE: l62_sync_state.json
           L62_LOOP_MINUTES: "62"
+          PYTHONUNBUFFERED: "1"
         run: python l62_weather_sync.py --loop
 
       - name: Save progress (last reading sent)
