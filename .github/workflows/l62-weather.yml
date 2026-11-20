@@ -1,0 +1,47 @@
+name: L62 weather to Nominal
+
+# Every hour a job starts and checks the L62 WeatherXM station once a minute for ~62 minutes,
+# streaming each new reading to Nominal. Jobs queue back-to-back, so data keeps flowing 24/7
+# without any PC. If GitHub starts a job late, the gap is filled from the 15-minute history.
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: l62-weather
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  stream:
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install --quiet -r requirements.txt
+
+      - name: Stream L62 weather to Nominal (~1 hour)
+        env:
+          NOMINAL_TOKEN: ${{ secrets.NOMINAL_TOKEN }}
+          NOMINAL_DATASET_RID: ${{ secrets.NOMINAL_DATASET_RID }}
+          NOMINAL_WORKSPACE_RID: ${{ secrets.NOMINAL_WORKSPACE_RID }}
+          L62_STATE_FILE: l62_sync_state.json
+          L62_LOOP_MINUTES: "62"
+        run: python l62_weather_sync.py --loop
+
+      - name: Save progress (last reading sent)
+        if: always()
+        run: |
+          git config user.name "l62-weather-bot"
+          git config user.email "l62-weather-bot@users.noreply.github.com"
+          git add l62_sync_state.json
+          git diff --cached --quiet || (git commit -m "Update L62 sync state" && git pull --rebase && git push)
