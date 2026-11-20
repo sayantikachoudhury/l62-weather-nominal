@@ -1,6 +1,6 @@
 # L62 weather → Nominal (live, every minute)
 
-Streams observed weather (no forecast) from the WeatherXM station **high-indigo-air** at Elk Hills–Buttonwillow Airport (L62) into a Nominal dataset, once a minute. It runs in GitHub Actions, so it doesn't need any PC to be on.
+Streams observed weather (no forecast) from the WeatherXM station **high-indigo-air** at Elk Hills–Buttonwillow Airport (L62) into a Nominal dataset, once a minute. 
 
 ## How it works
 
