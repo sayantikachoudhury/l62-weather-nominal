@@ -1,0 +1,22 @@
+name: Deploy L62 Cloudflare Worker
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy Worker (cron every minute)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: cloudflare
+          secrets: |
+            NOMINAL_TOKEN
+            NOMINAL_DATASET_RID
+        env:
+          NOMINAL_TOKEN: ${{ secrets.NOMINAL_TOKEN }}
+          NOMINAL_DATASET_RID: ${{ secrets.NOMINAL_DATASET_RID }}
