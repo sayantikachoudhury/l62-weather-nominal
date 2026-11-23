@@ -1,0 +1,11 @@
+name = "l62-weather-nominal"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+workers_dev = false
+
+# Runs every minute
+[triggers]
+crons = ["* * * * *"]
+
+[observability]
+enabled = true
