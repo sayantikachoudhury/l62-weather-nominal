@@ -1,0 +1,33 @@
+name: Diagnose L62 Worker
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Run the Worker logic once from GitHub (prints errors)
+        env:
+          NOMINAL_TOKEN: ${{ secrets.NOMINAL_TOKEN }}
+          NOMINAL_DATASET_RID: ${{ secrets.NOMINAL_DATASET_RID }}
+        run: |
+          cp cloudflare/worker.js /tmp/w.mjs
+          cat > /tmp/run.mjs <<'JS'
+          globalThis.caches = { default: { match: async () => undefined, put: async () => {} } };
+          const w = (await import('/tmp/w.mjs')).default;
+          const env = { NOMINAL_TOKEN: process.env.NOMINAL_TOKEN, NOMINAL_DATASET_RID: process.env.NOMINAL_DATASET_RID };
+          let p; await w.scheduled({}, env, { waitUntil: (x) => { p = x; } }); await p;
+          JS
+          node /tmp/run.mjs
+      - name: Watch live Worker logs for 150 s
+        continue-on-error: true
+        working-directory: cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: timeout 150 npx -y wrangler@3 tail l62-weather-nominal --format pretty || true
