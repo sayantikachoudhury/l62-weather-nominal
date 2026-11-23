@@ -20,7 +20,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 80
     steps:
+      # ref: main = start from the LATEST saved progress, not the commit from when the job was queued
       - uses: actions/checkout@v4
+        with:
+          ref: main
 
       - uses: actions/setup-python@v5
         with:
@@ -39,10 +42,27 @@ jobs:
           PYTHONUNBUFFERED: "1"
         run: python l62_weather_sync.py --loop
 
+      # Save the last reading sent. Never conflicts: keeps whichever saved time is newest.
       - name: Save progress (last reading sent)
         if: always()
         run: |
           git config user.name "l62-weather-bot"
           git config user.email "l62-weather-bot@users.noreply.github.com"
-          git add l62_sync_state.json
-          git diff --cached --quiet || (git commit -m "Update L62 sync state" && git pull --rebase && git push)
+          cp l62_sync_state.json /tmp/mine.json
+          for attempt in 1 2 3 4 5; do
+            git fetch --quiet origin main
+            git reset --quiet --hard origin/main
+            python - <<'PY'
+          import json, os
+          mine = json.load(open("/tmp/mine.json"))
+          theirs = json.load(open("l62_sync_state.json")) if os.path.exists("l62_sync_state.json") else {"last_ts": ""}
+          best = mine if mine.get("last_ts", "") >= theirs.get("last_ts", "") else theirs
+          json.dump(best, open("l62_sync_state.json", "w"), indent=2)
+          PY
+            git add l62_sync_state.json
+            git diff --cached --quiet && exit 0
+            git commit --quiet -m "Update L62 sync state"
+            git push --quiet origin HEAD:main && exit 0
+            sleep $((attempt * 5))
+          done
+          echo "Could not save progress after 5 attempts (data was still sent to Nominal)."
