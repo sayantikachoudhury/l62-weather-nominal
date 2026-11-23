@@ -1,11 +1,12 @@
 name: L62 weather to Nominal
 
-# Every hour a job starts and checks the L62 WeatherXM station once a minute for ~62 minutes,
-# streaming each new reading to Nominal. Jobs queue back-to-back, so data keeps flowing 24/7
-# without any PC. If GitHub starts a job late, the gap is filled from the 15-minute history.
+# Each job checks the L62 WeatherXM station once a minute for ~62 minutes and streams each new
+# reading to Nominal. As soon as a job starts it queues its own successor, so the next job begins
+# the moment this one ends (GitHub's cron below is only a backup - it is often late).
+# If there is ever a gap, it is filled from the 15-minute history.
 on:
   schedule:
-    - cron: "17 * * * *"
+    - cron: "17 */6 * * *"   # backup only - restarts the chain if it ever stops
   workflow_dispatch: {}
 
 concurrency:
@@ -14,12 +15,18 @@ concurrency:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   stream:
     runs-on: ubuntu-latest
     timeout-minutes: 80
     steps:
+      - name: Queue the next run (starts as soon as this one finishes)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run l62-weather.yml --ref main --repo "${{ github.repository }}"
+
       # ref: main = start from the LATEST saved progress, not the commit from when the job was queued
       - uses: actions/checkout@v4
         with:
